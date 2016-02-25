@@ -127,7 +127,7 @@ class Launcher:
             print('Will launch Visual Studio')
             self.launch_vs(branch, env)
 
-        if arguments.msg_router is not None:
+        if arguments.msg_router:
             print('Will launch Message Router')
             self.launch_message_router(branch, env, conf)
 

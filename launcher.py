@@ -40,7 +40,7 @@ class VSLauncher:
             conf = int(input('Please, select a configuration: '))
         return conf
 
-    def ask_for_option(self):
+    def ask_for_branch(self):
         option = 1000
         while option < 0 or option > len(self.branches):
             i = 0
@@ -50,6 +50,32 @@ class VSLauncher:
             print('%d. Exit' % i)
             option = int(input('Please, select a branch: '))
         return option
+
+    @staticmethod
+    def ask_for_what_to_run():
+        args = type('Namespace', (object,), {})
+        processes = [
+            {'index': 1, 'process': 'Visual Studio'},
+            {'index': 2, 'process': 'Message Router'},
+        ]
+        option = 1000
+        while option < 0 or option > len(processes):
+            for process in processes:
+                print('%d. %s' % (process['index'], process['process']))
+            print('0. Exit')
+            option = int(input('Please, what to run: '))
+
+        args.count = 0
+        if option == 1:
+            args.visual_studio = True
+            args.msg_router = False
+            args.count = 1
+        if option == 2:
+            args.msg_router = True
+            args.visual_studio = False
+            args.count = 1
+
+        return args
 
     def launch_vs(self, branch, env):
         sln_file = os.path.join(branch.base_path, 'SSF.Dev', 'SSF.FC.Solution', 'SSF.FC', 'Dev', 'SSF.FC-Global.sln')
@@ -71,16 +97,22 @@ class VSLauncher:
         subprocess.Popen([router_exe, '-debug'], env=env, creationflags=subprocess.CREATE_NEW_CONSOLE)
 
     def main(self, args):
+        arguments = args
         # Look for the branches
         self.load_branches()
 
-        option = self.ask_for_option()
+        if args.interactive:
+            arguments = self.ask_for_what_to_run()
+            if arguments.count == 0:
+                return
 
+        # Select branch
+        option = self.ask_for_branch()
         if option == len(self.branches):
             return
 
+        # Select run config
         conf = self.ask_for_config()
-
         if conf == 0:
             return
 
@@ -91,10 +123,12 @@ class VSLauncher:
         env = os.environ
         env['PATH'] += os.path.join(branch.base_path, 'SSF.Dev', 'win32' if conf == 1 else 'win32.release', 'lib')
 
-        if args.visual_studio:
+        if arguments.visual_studio:
+            print('Will launch Visual Studio')
             self.launch_vs(branch, env)
 
-        if args.msg_router:
+        if arguments.msg_router is not None:
+            print('Will launch Message Router')
             self.launch_message_router(branch, env, conf)
 
 
@@ -102,6 +136,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-vs', '--visual-studio', help='Launch VS', action='store_true')
     parser.add_argument('-mr', '--msg-router', help='Run Message Router', action='store_true')
+    parser.add_argument('-i', '--interactive', help='Interactively ask what to run', action='store_true')
 
     args = parser.parse_args()
 

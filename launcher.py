@@ -11,7 +11,7 @@ class Branch:
     base_path = None
 
 
-class VSLauncher:
+class Launcher:
     def __init__(self):
         super().__init__()
         self.config = configparser.ConfigParser()
@@ -143,5 +143,5 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         parser.print_help()
     else:
-        launcher = VSLauncher()
+        launcher = Launcher()
         launcher.main(args)

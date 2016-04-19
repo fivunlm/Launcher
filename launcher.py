@@ -5,6 +5,15 @@ import argparse
 
 import sys
 
+PROCESSES = [
+    {'index': 1, 'process': 'Visual Studio'},
+    {'index': 2, 'process': 'Message Router'},
+    {'index': 3, 'process': 'Forecourt Controller'},
+    {'index': 4, 'process': 'OSD Service'},
+    {'index': 5, 'process': 'Ticket Module'},
+    {'index': 6, 'process': 'Watchdog'},
+]
+
 
 class Branch:
     name = None
@@ -53,32 +62,32 @@ class Launcher:
 
     @staticmethod
     def ask_for_what_to_run():
-        args = type('Namespace', (object,), {})
-        processes = [
-            {'index': 1, 'process': 'Visual Studio'},
-            {'index': 2, 'process': 'Message Router'},
-        ]
         option = 1000
-        while option < 0 or option > len(processes):
-            for process in processes:
+        while option < 0 or option > len(PROCESSES):
+            for process in PROCESSES:
                 print('%d. %s' % (process['index'], process['process']))
             print('0. Exit')
             option = int(input('Please, what to run: '))
 
-        args.count = 0
-        if option == 1:
-            args.visual_studio = True
-            args.msg_router = False
-            args.count = 1
-        if option == 2:
-            args.msg_router = True
-            args.visual_studio = False
-            args.count = 1
+        return option
 
-        return args
+    @staticmethod
+    def run_fusion(branch_base_path, what_to_run, debug=True):
+        run_fusion = os.path.join(branch_base_path, 'SSF.Dev\\SSF.FC.Solution\\Scripts.Windows\\DevTools\\run_fusion.bat')
+        print(run_fusion)
+        subprocess.Popen([
+            run_fusion,
+            branch_base_path,
+            what_to_run,
+            'debug' if debug else 'release'
+        ])
 
-    def launch_vs(self, branch, env):
-        sln_file = os.path.join(branch.base_path, 'SSF.Dev', 'SSF.FC.Solution', 'SSF.FC', 'Dev', 'SSF.FC-Global.sln')
+    def launch_vs(self, branch, conf_option):
+        # Prepare PATH to launch VS
+        env = os.environ
+        bin_base_folder ='win32' if conf_option == 1 else 'win32.release'
+        env['PATH'] = os.path.join(branch.base_path, 'SSF.Dev', bin_base_folder, 'lib') + ';' + env['PATH']
+        sln_file = os.path.join(branch.base_path, 'SSF.Dev\SSF.FC.Solution\SSF.FC\Dev\SSF.FC-Global.sln')
         vs_path = ''
         if branch.name in self.run_in_2008:
             vs_path = self.config.get('General', 'vs2008')
@@ -86,62 +95,55 @@ class Launcher:
             vs_path = self.config.get('General', 'vs2013')
         subprocess.Popen([vs_path, sln_file], env=env)
 
-    @staticmethod
-    def launch_message_router(branch, env, conf):
-        router_exe = os.path.join(branch.base_path,
-                                  'SSF.Dev',
-                                  'win32' if conf == 1 else 'win32.release', 'bin',
-                                  'SSF.Msg.Router.D.exe' if conf == 1 else 'SSF.Msg.Router.exe'
-                                  )
-        print(router_exe)
-        subprocess.Popen([router_exe, '-debug'], env=env, creationflags=subprocess.CREATE_NEW_CONSOLE)
+    def main(self):
 
-    def main(self, args):
-        arguments = args
-        # Look for the branches
+        # Check branches downloaded
         self.load_branches()
 
-        if args.interactive:
-            arguments = self.ask_for_what_to_run()
-            if arguments.count == 0:
-                return
+        # Ask for what to run
+        process_option = self.ask_for_what_to_run()
+        if process_option == len(PROCESSES):
+            return
 
         # Select branch
-        option = self.ask_for_branch()
-        if option == len(self.branches):
+        branch_option = self.ask_for_branch()
+        if branch_option == len(self.branches):
             return
 
         # Select run config
-        conf = self.ask_for_config()
-        if conf == 0:
+        config_option = self.ask_for_config()
+        if config_option == 0:
             return
 
-        branch = self.branches[option]
+        branch = self.branches[branch_option]
+        print('Selected branch: ', branch.name)
 
-        print('Selected branch: ', branch.name, 'Configuration: ', 'Debug' if conf == 1 else 'Release')
-
-        env = os.environ
-        env['PATH'] += os.path.join(branch.base_path, 'SSF.Dev', 'win32' if conf == 1 else 'win32.release', 'lib')
-
-        if arguments.visual_studio:
+        if process_option == 1:
             print('Will launch Visual Studio')
-            self.launch_vs(branch, env)
+            self.launch_vs(branch, config_option)
 
-        if arguments.msg_router:
+        if process_option == 2:
             print('Will launch Message Router')
-            self.launch_message_router(branch, env, conf)
+            self.run_fusion(branch.base_path, 'router', True if config_option == 1 else False)
+
+        if process_option == 3:
+            print('Will launch Forecourt Controller')
+            self.run_fusion(branch.base_path, 'fc', True if config_option == 1 else False)
+
+        if process_option == 4:
+            print('Will launch OSD Service')
+            self.run_fusion(branch.base_path, 'osd', True if config_option == 1 else False)
+
+        if process_option == 5:
+            print('Will launch Ticket Module')
+            self.run_fusion(branch.base_path, 'ticket_module', True if config_option == 1 else False)
+
+        if process_option == 6:
+            print('Will launch Watchdog')
+            self.run_fusion(branch.base_path, 'watchdog', True if config_option == 1 else False)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-vs', '--visual-studio', help='Launch VS', action='store_true')
-    parser.add_argument('-mr', '--msg-router', help='Run Message Router', action='store_true')
-    parser.add_argument('-i', '--interactive', help='Interactively ask what to run', action='store_true')
+    launcher = Launcher()
+    launcher.main()
 
-    args = parser.parse_args()
-
-    if len(sys.argv) == 1:
-        parser.print_help()
-    else:
-        launcher = Launcher()
-        launcher.main(args)

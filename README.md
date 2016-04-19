@@ -5,7 +5,7 @@ Fix path and launch VS or Message Router
 Python 3.x
 
 # Instalation
-Download zip file https://github.com/fivunlm/Launcher/archive/v1.0.0.zip
+Download zip file https://github.com/fivunlm/Launcher/releases/latest
 
 # Usage
 python launcher.py -i
